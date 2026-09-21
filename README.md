@@ -34,8 +34,8 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false
 
 | RID     | Режим               | Розмір publish | Runtime потрібен |
 |---------|---------------------|----------------|-------------------|
-| win-x64 | self-contained      | ~XX МБ         | ні                |
-| win-x64 | framework-dependent | ~X МБ          | так (.NET 10)     |
+| win-x64 | self-contained      | ~0.19 МБ         | ні                |
+| win-x64 | framework-dependent | ~0.19 МБ          | так (.NET 10)     |
 
 - **self-contained** — у каталог publish кладеться код, залежності та копія .NET
   runtime. Застосунок працює на машині без встановленого .NET, але каталог значно
