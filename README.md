@@ -7,7 +7,7 @@
 ## Запуск
 
     dotnet build
-    dotnet run --project src/Cli                      # data/sample.csv
+    dotnet run --project src/Cli data/sample.csv      # імпорт CSV (лаб. 3)
     dotnet run --project src/Cli шлях/до/файлу.csv    # свій файл
 
 Код завершення: `0` успіх, `1` файл не знайдено.
@@ -19,13 +19,20 @@
 ## Структура
 
     CrossApp/
-      data/sample.csv
+      data/sample.csv                       # CSV для імпорту (лаб. 3)
       src/
         Core/
-          Dto/       BookDto, ImportResult<T>
-          Import/    BookCsvImporter
+          Abstractions/  ILibraryStore      # контракт сховища (лаб. 5)
+          Domain/        BookCopy, Loan     # сутності з інваріантами (лаб. 4)
+          Dto/           BookDto, BookCopyDto, LoanDto, ImportResult<T>
+          Import/        BookCsvImporter    # імпорт CSV (лаб. 3)
+          Services/      LendingService     # бізнес-операції (лаб. 5)
+          Storage/       InMemoryLibraryStore, FileLibraryStore
           EnvironmentInfo.cs
-        Cli/         Program.cs (аргументи, виклик імпорту, вивід)
+          SampleData.cs                     # 16 примірників для демонстрації
+        Cli/
+          Program.cs                        # composition root і сценарій
+          Demos.cs                          # демонстрації лаб. 3 і 4
 
 ## Лабораторна 3: імпорт книг із CSV
 
@@ -65,5 +72,28 @@ Records із лабораторної 3 та нові `BookCopyDto` і `LoanDto`
 
 ### Запуск
 
-    dotnet run --project src/Cli                 # демонстрація домену (лаб. 4)
+    dotnet run --project src/Cli -- --domain     # демонстрація домену (лаб. 4)
     dotnet run --project src/Cli data/sample.csv # імпорт CSV (лаб. 3)
+
+## Лабораторна 5: сервісний шар, два сховища, ручне впровадження залежностей
+
+- Інтерфейс сховища: `ILibraryStore` (`src/Core/Abstractions`), п'ять методів: `List`, `GetById`, `Add`, `Update`, `Remove`.
+- Реалізації: `InMemoryLibraryStore` (словник у пам'яті, початкові дані через конструктор)
+  і `FileLibraryStore` (JSON-файл `data/catalog.json`, кеш у пам'яті, запис на диск після кожної зміни).
+- Сервіс: `LendingService(ILibraryStore store)`: `AddCopy`, `IssueCopy`, `ReturnCopy`, `All`, `Find`.
+  Залежність передається через конструктор, сервіс не знає, яке саме сховище йому дали.
+- Composition root: `src/Cli/Program.cs`, єдине місце, де названо конкретні сховища. Вибір реалізації за аргументом `--file`.
+- Контейнер DI не підключено (`Microsoft.Extensions.DependencyInjection` не використовується): залежності передаються вручну.
+- У сховищі лежать сутності `BookCopy` (лаб. 4), а на диск потрапляють `BookCopyDto`.
+
+Схема залежностей: `Cli` → `LendingService` → `ILibraryStore` → `InMemoryLibraryStore` | `FileLibraryStore`
+
+### Запуск
+
+    dotnet run --project src/Cli                    # сховище в пам'яті, після виходу дані зникають
+    dotnet run --project src/Cli -- --file          # файлове сховище, дані зберігаються між запусками
+    dotnet run --project src/Cli -- --domain        # демонстрація домену (лаб. 4)
+    dotnet run --project src/Cli data/sample.csv    # імпорт CSV (лаб. 3)
+
+Файл даних створюється поруч зі збіркою: `src/Cli/bin/<конфігурація>/<рантайм>/data/catalog.json`.
+Повний шлях програма друкує сама в рядку «Файл даних».
