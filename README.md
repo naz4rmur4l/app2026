@@ -26,7 +26,8 @@
           Domain/        BookCopy, Loan     # сутності з інваріантами (лаб. 4)
           Dto/           BookDto, BookCopyDto, LoanDto, ImportResult<T>
           Import/        BookCsvImporter    # імпорт CSV (лаб. 3)
-          Services/      LendingService     # бізнес-операції (лаб. 5)
+          Services/      LendingService     # бізнес-операції, подія Changed (лаб. 5, 6)
+          Events/        LibraryChangeKind, LibraryChangedEventArgs  # події (лаб. 6)
           Storage/       InMemoryLibraryStore, FileLibraryStore
           EnvironmentInfo.cs
           SampleData.cs                     # 16 примірників для демонстрації
@@ -97,3 +98,20 @@ Records із лабораторної 3 та нові `BookCopyDto` і `LoanDto`
 
 Файл даних створюється поруч зі збіркою: `src/Cli/bin/<конфігурація>/<рантайм>/data/catalog.json`.
 Повний шлях програма друкує сама в рядку «Файл даних».
+
+## Лабораторна 6: доменні події, делегати Action/Func, лямбди
+
+- Тип даних події в `src/Core/Events`: `LibraryChangeKind` (`BookAdded`, `CopyIssued`, `CopyReturned`)
+  і `LibraryChangedEventArgs` (`CopyId`, `Kind`, `ReaderId`, `DueDate`, `At`).
+- `LendingService` оголошує `event EventHandler<LibraryChangedEventArgs>? Changed` і один приватний `OnChanged`
+  (`Changed?.Invoke(this, args)`). Його викликають лише після успішної зміни стану: якщо інваріант кинув виняток, події немає.
+- Core не використовує `Console` і не пише у файл. Підписки лежать у `Cli/Program.cs`:
+  локальний метод `OnLibraryChanged` (консоль + `logs/app.log`) і лямбда-лічильник `(_, _) => changes++` (замикання).
+- Відписка `service.Changed -= OnLibraryChanged;`: після неї консоль і файл мовчать, а лічильник-лямбда продовжує рахувати.
+- `FindAll(Func<BookCopy, bool> predicate)`: делегат Func там, де потрібно повернути значення, подія для цього не підходить.
+- Файл логу: `src/Cli/bin/<конфігурація>/<рантайм>/logs/app.log` (шлях через `Path.Combine`, каталог створюється кодом).
+
+### Запуск
+
+    dotnet run --project src/Cli                    # сценарії лаб. 5 і 6, події в консолі та в logs/app.log
+    dotnet run --project src/Cli -- --file          # те саме з файловим сховищем
