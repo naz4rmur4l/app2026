@@ -8,9 +8,12 @@ using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8; // щоб кирилиця читалась у консолі Windows
 
+// Підкоманда: перший аргумент, що не починається з "--" (прапорець --file підкомандою не вважається).
+string? command = args.FirstOrDefault(a => !a.StartsWith("--"));
+
 // Попередні лабораторні лишаються доступними: шлях до CSV (лаб. 3) і --domain (лаб. 4).
-if (args.Length > 0 && !args[0].StartsWith("--"))
-    return Demos.RunImport(args[0]);
+if (command is not null && !command.StartsWith("report-"))
+    return Demos.RunImport(command);
 if (args.Contains("--domain"))
     return Demos.RunDomain();
 
@@ -22,6 +25,10 @@ ILibraryStore store = useFile
     : new InMemoryLibraryStore(SampleData.Copies());
 var service = new LendingService(store);
 // =====================================================================
+
+// Лаб. 7: підкоманди звітів report-*
+if (command is not null)
+    return ReportCommands.Run(command, service);
 
 Console.WriteLine($"Сховище: {store.GetType().Name}");
 if (useFile)
@@ -100,6 +107,7 @@ foreach (BookCopy c in issued)
 Console.WriteLine();
 Console.WriteLine($"Записів наприкінці: {service.All().Count}");
 Console.WriteLine($"Лог подій: {logPath}");
+Console.WriteLine($"Звіти (лаб. 7): dotnet run --project src/Cli -- {ReportCommands.Usage}");
 return 0;
 
 static void Try(string title, Action action)

@@ -28,12 +28,14 @@
           Import/        BookCsvImporter    # імпорт CSV (лаб. 3)
           Services/      LendingService     # бізнес-операції, подія Changed (лаб. 5, 6)
           Events/        LibraryChangeKind, LibraryChangedEventArgs  # події (лаб. 6)
+          Reports/       ReportService, ReaderLine, OverdueLine, GroupSummary  # звіти LINQ (лаб. 7)
           Storage/       InMemoryLibraryStore, FileLibraryStore
           EnvironmentInfo.cs
           SampleData.cs                     # 16 примірників для демонстрації
         Cli/
           Program.cs                        # composition root і сценарій
           Demos.cs                          # демонстрації лаб. 3 і 4
+          ReportCommands.cs                 # підкоманди report-* (лаб. 7)
 
 ## Лабораторна 3: імпорт книг із CSV
 
@@ -115,3 +117,40 @@ Records із лабораторної 3 та нові `BookCopyDto` і `LoanDto`
 
     dotnet run --project src/Cli                    # сценарії лаб. 5 і 6, події в консолі та в logs/app.log
     dotnet run --project src/Cli -- --file          # те саме з файловим сховищем
+
+## Лабораторна 7: звіти через LINQ to Objects
+
+Звіти лежать у `src/Core/Reports`. `ReportService` приймає `IEnumerable<T>` (не сховище) і повертає `IReadOnlyList<DTO>`
+(record-и `ReaderLine`, `OverdueLine`, `GroupSummary`), тому клієнт не залежить від сутностей. Core нічого не знає про `Console`.
+
+| Метод | Питання | Оператори |
+|---|---|---|
+| `TopReaders(loans, n)` | топ-N читачів за кількістю видач | `GroupBy`, `Select`, `OrderByDescending`, `ThenBy`, `Take` |
+| `Overdue(loans, today)` | які видачі прострочені (строк 14 днів) | `Where`, `OrderBy`, `ThenBy`, `Select` |
+| `ByIsbn(copies)` | скільки примірників кожної назви і скільки з них видано | `GroupBy`, `Select`, `Count`, `OrderByDescending`, `ThenBy` |
+| `Totals(copies)` | скільки назв, примірників, середня і максимальна кількість на назву | `GroupBy`, `Sum`, `Average`, `Max`, іменований кортеж |
+
+- Топ-N має другий ключ сортування (`ReaderId`), тому порядок рядків однаковий за кожного запуску.
+- Порожнє джерело обробляється без винятку: `Totals` перевіряє `Count == 0` до виклику `Average` і `Max`.
+- Видачі (`Loan`) у сховищі не зберігаються, тому `report-top` і `report-overdue` беруть демо-дані `SampleData.Loans(today)`;
+  `report-groups` і `report-sum` працюють з поточним сховищем. Дати демо-видач задано зсувом від сьогодні, вивід не залежить від дня запуску.
+
+### Відкладене виконання
+
+`Where(...)` лише описує запит і нічого не обчислює. Запит виконується тоді, коли результат хтось перебирає або викликає
+завершальний оператор (`Count()`, `ToList()`, `foreach`). У команді `report-lazy` запит `source.Where(c => c.IsIssued)` будується один раз.
+Перший `query.Count()` проходить список і дає 3. Після `source.Add(...)` другий `query.Count()` проходить уже змінений список і дає 4,
+бо довжина в запиті не зберігається. `ToList()` фіксує результат: `snapshot.Count` читає готову властивість, і
+після `source.Clear()` він лишається 4.
+
+### Запуск
+
+    dotnet run --project src/Cli -- report-top        # топ-5 читачів
+    dotnet run --project src/Cli -- report-overdue    # прострочені видачі
+    dotnet run --project src/Cli -- report-groups     # примірники за ISBN
+    dotnet run --project src/Cli -- report-sum        # підсумки й середнє
+    dotnet run --project src/Cli -- report-lazy       # демо відкладеного виконання
+    dotnet run --project src/Cli -- report-empty      # звіти на порожньому джерелі
+    dotnet run --project src/Cli                      # сценарії лаб. 5 і 6 (подія, лог)
+
+Прапорець `--file` не вважається назвою звіту: `-- report-sum --file` читає дані з файлового сховища.
